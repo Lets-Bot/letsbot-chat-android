@@ -66,7 +66,15 @@ mavenPublishing {
     if (providers.gradleProperty("signingInMemoryKey").isPresent) {
         signAllPublications()
     }
-    coordinates("net.letsbot", "chat-sdk", providers.gradleProperty("VERSION_NAME").get())
+    // JitPack builds (JITPACK=true) publish under the JitPack group so that every POM dependency between the modules
+    // resolves from JitPack too. Maven Central and local builds keep the net.letsbot coordinates.
+    val onJitPack = providers.environmentVariable("JITPACK").orNull == "true"
+    coordinates(
+        if (onJitPack) "com.github.Lets-Bot.letsbot-chat-android" else providers.gradleProperty("GROUP").get(),
+        "chat-sdk",
+        (if (onJitPack) providers.environmentVariable("VERSION").orNull else null)
+            ?: providers.gradleProperty("VERSION_NAME").get(),
+    )
     pom {
         name.set("LetsBot In-App Chat SDK")
         description.set("LetsBot in-app chat for Android: hosted chat screen, verified identity, push notifications and unread badge.")

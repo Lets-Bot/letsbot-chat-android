@@ -39,6 +39,40 @@ dependencies {
 }
 ```
 
+### Install directly from GitHub (JitPack)
+
+No Maven Central needed: JitPack builds the tagged release straight from this repository. Add the JitPack repository
+and use the JitPack coordinates (group `com.github.Lets-Bot.letsbot-chat-android`):
+
+```kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
+// app/build.gradle.kts — pin the release tag
+dependencies {
+    implementation("com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.1.0")
+    // Optional, for Jetpack Compose:
+    implementation("com.github.Lets-Bot.letsbot-chat-android:chat-sdk-compose:0.1.0")
+}
+```
+
+Groovy (`settings.gradle` / `app/build.gradle`):
+
+```groovy
+maven { url 'https://jitpack.io' }
+
+implementation 'com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.1.0'
+```
+
+Use either the Maven Central (`net.letsbot`) or the JitPack coordinates, never both in the same app. The code and
+the package names (`net.letsbot.chat`) are identical.
+
 The SDK's manifest merges `INTERNET`, `POST_NOTIFICATIONS` and `RECORD_AUDIO` (voice notes, requested only when the
 user starts recording). If your app must not declare the microphone permission:
 
@@ -237,6 +271,9 @@ Publishing to Maven Central uses `com.vanniktech.maven.publish`; credentials and
 `ORG_GRADLE_PROJECT_mavenCentralUsername`, `ORG_GRADLE_PROJECT_mavenCentralPassword`,
 `ORG_GRADLE_PROJECT_signingInMemoryKey`, `ORG_GRADLE_PROJECT_signingInMemoryKeyId` and
 `ORG_GRADLE_PROJECT_signingInMemoryKeyPassword`, then `./gradlew publishToMavenCentral`.
+
+JitPack builds use [`jitpack.yml`](jitpack.yml) (JDK 17, unsigned `publishToMavenLocal`); with `JITPACK=true` the
+artifacts are published under `com.github.Lets-Bot.letsbot-chat-android` instead of `net.letsbot`.
 
 ## License
 

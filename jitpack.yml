@@ -1,0 +1,6 @@
+# Build configuration for https://jitpack.io (install straight from a GitHub tag).
+# AGP 8.13 needs JDK 17 or newer. Artifacts are published unsigned to the local Maven repository, which JitPack serves.
+jdk:
+  - openjdk17
+install:
+  - ./gradlew :chat-sdk:publishToMavenLocal :chat-sdk-compose:publishToMavenLocal -x test --stacktrace

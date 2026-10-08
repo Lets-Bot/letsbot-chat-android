@@ -23,5 +23,7 @@ All notable changes to this project are documented here. The format follows
   accepts messages only from the LetsBot origin, no file/content access, no mixed content; image/PDF picker and
   microphone permission flow for voice notes.
 - Consumer R8 rules, sample app, unit tests, Maven Central publishing configuration.
+- Install straight from GitHub through JitPack: `com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.1.0` and
+  `com.github.Lets-Bot.letsbot-chat-android:chat-sdk-compose:0.1.0` (`jitpack.yml`).
 
-[0.1.0]: https://github.com/Lets-Bot/letsbot-chat-android/releases/tag/v0.1.0
+[0.1.0]: https://github.com/Lets-Bot/letsbot-chat-android/releases/tag/0.1.0
