@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Requested at runtime by the app on Android 13+ (see README). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Voice notes in the chat; requested at runtime only when the user starts recording. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
+    <application>
+        <activity
+            android:name="net.letsbot.chat.LetsBotChatActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|density"
+            android:exported="false"
+            android:label="@string/letsbot_chat_title"
+            android:theme="@style/LetsBot.Theme.Chat"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

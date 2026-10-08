@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LetsBot Chat Sample</string>
+    <string name="open_chat">Open chat</string>
+    <string name="open_chat_unread">Open chat (%1$d)</string>
+    <string name="open_chat_compose">Open chat (Compose)</string>
+    <string name="identify">Identify</string>
+    <string name="logout">Logout</string>
+    <string name="user_id_hint">User id (from your backend)</string>
+    <string name="identity_token_hint">Identity token (JWT from your backend)</string>
+    <string name="config_info">App Key: %1$s\nServer: %2$s</string>
+    <string name="identified">Identified</string>
+    <string name="identify_failed">Identify failed: %1$s</string>
+    <string name="hint_app_not_registered">Add this package name in LetsBot → In-App Chat → Platforms</string>
+    <string name="hint_not_found">Check the App Key</string>
+    <string name="hint_identity_expired">Fetch a fresh identity token from your backend</string>
+</resources>

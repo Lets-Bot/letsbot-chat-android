@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="letsbot_chat_title">Chat</string>
+    <string name="letsbot_chat_error">No pudimos cargar el chat. Inténtalo de nuevo.</string>
+    <string name="letsbot_chat_error_offline">No tienes conexión. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="letsbot_chat_retry">Reintentar</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="letsbot_chat_title">المحادثة</string>
+    <string name="letsbot_chat_error">تعذّر تحميل المحادثة. حاول مرة أخرى.</string>
+    <string name="letsbot_chat_error_offline">أنت غير متصل بالإنترنت. تحقّق من الاتصال وحاول مرة أخرى.</string>
+    <string name="letsbot_chat_retry">حاول مرة أخرى</string>
+</resources>
