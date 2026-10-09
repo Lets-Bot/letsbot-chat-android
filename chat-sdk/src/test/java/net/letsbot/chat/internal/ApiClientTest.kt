@@ -41,7 +41,7 @@ class ApiClientTest {
         assertEquals("application/json", request.getHeader("Accept"))
         assertEquals("com.acme.app", request.getHeader("X-LB-App-Id"))
         assertEquals("android", request.getHeader("X-LB-Platform"))
-        assertEquals("android/0.1.0", request.getHeader("X-LB-SDK"))
+        assertEquals("android/0.2.0", request.getHeader("X-LB-SDK"))
         assertEquals(TOKEN_A, request.getHeader("X-LB-Visitor"))
         assertTrue(request.getHeader("Content-Type")!!.startsWith("application/json"))
         assertEquals("fcm-1", JSONObject(request.body.readUtf8()).getString("token"))

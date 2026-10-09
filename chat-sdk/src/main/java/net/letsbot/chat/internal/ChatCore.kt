@@ -250,8 +250,8 @@ internal class ChatCore(
 
     fun contextJson(): JSONObject = context.toJsonObject()
 
-    /** Payload for `window.LetsBotHost.boot(...)` (API.md §5). */
-    fun bootPayload(token: String, resolvedTheme: String): JSONObject {
+    /** Payload for `window.LetsBotHost.boot(...)` (API.md §5); [insets] in CSS px (API.md §8.1). */
+    fun bootPayload(token: String, resolvedTheme: String, insets: JSONObject? = null): JSONObject {
         val payload = JSONObject()
             .put("token", token)
             .put("appId", client.appId)
@@ -261,6 +261,7 @@ internal class ChatCore(
             .put("locale", effectiveLocale)
             .put("theme", resolvedTheme)
         color?.let { payload.put("color", it) }
+        insets?.let { payload.put("insets", it) }
         return payload
     }
 

@@ -18,10 +18,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import net.letsbot.chat.internal.ApiClient
 import net.letsbot.chat.internal.ChatCore
+import net.letsbot.chat.internal.ChromeCache
 import net.letsbot.chat.internal.ClientInfo
 import net.letsbot.chat.internal.EventHub
 import net.letsbot.chat.internal.KeystoreSecureStore
 import net.letsbot.chat.internal.MainThread
+import net.letsbot.chat.internal.PreferencesKeyValue
 import net.letsbot.chat.internal.UrlPolicy
 import java.util.Locale
 
@@ -39,7 +41,7 @@ import java.util.Locale
  */
 public object LetsBot {
     /** Version of this SDK. */
-    public const val SDK_VERSION: String = "0.1.0"
+    public const val SDK_VERSION: String = "0.2.0"
 
     /** Default LetsBot server. */
     public const val DEFAULT_BASE_URL: String = "https://letsbot.net"
@@ -101,6 +103,7 @@ public object LetsBot {
         if (!base.startsWith("https://")) Log.w(TAG, "baseUrl is not https; use http only for local development")
 
         val app = context.applicationContext
+        if (chromeCache == null) chromeCache = ChromeCache(PreferencesKeyValue(app))
         val existing = core
         if (existing != null && existing.appKey == key && existing.baseUrl == base) {
             existing.locale = locale?.trim()?.takeIf { it.isNotEmpty() }
@@ -315,6 +318,10 @@ public object LetsBot {
     }
 
     internal fun coreOrNull(): ChatCore? = core
+
+    /** Last chrome colours reported by the chat page (plain preferences; colours only). */
+    @Volatile
+    internal var chromeCache: ChromeCache? = null
 
     internal val eventHub: EventHub get() = events
 

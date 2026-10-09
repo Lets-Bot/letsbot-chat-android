@@ -13,6 +13,9 @@ internal sealed class BridgeMessage {
     data class Message(val text: String) : BridgeMessage()
     data class Error(val code: String) : BridgeMessage()
 
+    /** API.md §8.1: status-bar icon style over the header + header/background colours (`#rrggbb`, lower case). */
+    data class Chrome(val lightStatusBar: Boolean, val header: String?, val background: String?) : BridgeMessage()
+
     companion object {
         private const val MAX_LENGTH = 64 * 1024
 
@@ -31,8 +34,23 @@ internal sealed class BridgeMessage {
                 "unread" -> Unread(json.optInt("count", 0).coerceAtLeast(0))
                 "message" -> Message(json.optString("t"))
                 "error" -> Error(json.optString("code").ifEmpty { "unknown" })
+                "chrome" -> parseChrome(json)
                 else -> null
             }
+        }
+
+        private fun parseChrome(json: JSONObject): Chrome? {
+            val statusBar = json.optString("statusBar")
+            if (statusBar != "light" && statusBar != "dark") return null
+            fun color(field: String): Result<String?> {
+                if (!json.has(field) || json.isNull(field)) return Result.success(null)
+                val value = json.opt(field) as? String
+                return ChatChrome.normalizedHex(value)?.let { Result.success(it) }
+                    ?: Result.failure(IllegalArgumentException(field))
+            }
+            val header = color("header").getOrElse { return null }
+            val background = color("background").getOrElse { return null }
+            return Chrome(statusBar == "light", header, background)
         }
     }
 }

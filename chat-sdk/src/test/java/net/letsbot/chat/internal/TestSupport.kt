@@ -17,7 +17,7 @@ internal val testClient = ClientInfo(
     appId = "com.acme.app",
     appVersion = "2.3.0",
     osVersion = "14",
-    sdk = "android/0.1.0",
+    sdk = "android/0.2.0",
 )
 
 internal fun MockWebServer.baseUrl(): String = url("/").toString().trimEnd('/')

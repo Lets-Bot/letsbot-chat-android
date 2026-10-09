@@ -5,16 +5,18 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
-import androidx.core.view.ViewCompat
+import android.view.WindowManager
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 
 /**
- * Full-screen activity hosting the LetsBot chat. Open it with [LetsBot.show]; it closes on the page's close button,
- * on back, or with [LetsBot.hide].
+ * Full-screen, edge-to-edge activity hosting the LetsBot chat. Open it with [LetsBot.show]; it closes on the page's
+ * close button, on back, or with [LetsBot.hide].
  */
 public class LetsBotChatActivity : Activity(), LetsBotChatHost {
     private lateinit var chatView: LetsBotChatView
@@ -24,20 +26,38 @@ public class LetsBotChatActivity : Activity(), LetsBotChatHost {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = getString(R.string.letsbot_chat_title)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        chatView = LetsBotChatView(this).also { it.host = this }
-        ViewCompat.setOnApplyWindowInsetsListener(chatView) { view, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or
-                    WindowInsetsCompat.Type.ime(),
-            )
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            WindowInsetsCompat.CONSUMED
+        enableEdgeToEdge()
+        // No padding here: the chat page pads itself with the insets LetsBotChatView passes (API.md §8.1), so the
+        // header colour fills the status-bar area and the composer stays above the navigation bar and keyboard.
+        chatView = LetsBotChatView(this).also {
+            it.host = this
+            it.onBackgroundChanged = { color -> window.setBackgroundDrawable(ColorDrawable(color)) }
         }
         setContentView(
             chatView,
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
         )
+    }
+
+    /** Draws behind the status bar, navigation bar and display cutout with transparent bars. */
+    @Suppress("DEPRECATION")
+    private fun enableEdgeToEdge() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 29) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+        if (Build.VERSION.SDK_INT >= 28) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= 30) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+        }
     }
 
     override fun onDestroy() {

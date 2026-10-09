@@ -33,9 +33,9 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts — pin the version
 dependencies {
-    implementation("net.letsbot:chat-sdk:0.1.0")
+    implementation("net.letsbot:chat-sdk:0.2.0")
     // Optional, for Jetpack Compose:
-    implementation("net.letsbot:chat-sdk-compose:0.1.0")
+    implementation("net.letsbot:chat-sdk-compose:0.2.0")
 }
 ```
 
@@ -56,9 +56,9 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts — pin the release tag
 dependencies {
-    implementation("com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.1.0")
+    implementation("com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.2.0")
     // Optional, for Jetpack Compose:
-    implementation("com.github.Lets-Bot.letsbot-chat-android:chat-sdk-compose:0.1.0")
+    implementation("com.github.Lets-Bot.letsbot-chat-android:chat-sdk-compose:0.2.0")
 }
 ```
 
@@ -67,7 +67,7 @@ Groovy (`settings.gradle` / `app/build.gradle`):
 ```groovy
 maven { url 'https://jitpack.io' }
 
-implementation 'com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.1.0'
+implementation 'com.github.Lets-Bot.letsbot-chat-android:chat-sdk:0.2.0'
 ```
 
 Use either the Maven Central (`net.letsbot`) or the JitPack coordinates, never both in the same app. The code and
@@ -113,11 +113,17 @@ Jetpack Compose:
 ```kotlin
 composable("support") {
     LetsBotChatScreen(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize(),   // edge-to-edge: no safeDrawingPadding()/imePadding()
         onClose = { navController.popBackStack() },
     )
 }
 ```
+
+The chat screen is **edge-to-edge**: the chat header colour fills the status-bar area (and the display cutout), the
+composer stays above the navigation bar and the keyboard, and the status/navigation-bar icons follow the chat
+(white icons on a dark header). `LetsBot.show` handles everything. With `LetsBotChatScreen`, call
+`enableEdgeToEdge()` in the hosting activity and don't add inset padding around it — the chat passes the insets to
+the page itself and restores your previous bar style when it leaves the screen.
 
 `LetsBot.hide()` closes any open chat. Use `LetsBot.setLocale("ar")` when the user switches language and
 `LetsBot.setTheme(...)` if your app has its own dark-mode switch.

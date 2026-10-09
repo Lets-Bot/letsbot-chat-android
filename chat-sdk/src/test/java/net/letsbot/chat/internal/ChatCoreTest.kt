@@ -55,7 +55,7 @@ class ChatCoreTest {
         assertEquals("android", device.getString("platform"))
         assertEquals("com.acme.app", device.getString("app_id"))
         assertEquals("2.3.0", device.getString("app_version"))
-        assertEquals("android/0.1.0", device.getString("sdk"))
+        assertEquals("android/0.2.0", device.getString("sdk"))
         assertEquals("order_details", body.getJSONObject("ctx").getString("screen"))
         assertEquals(1234, body.getJSONObject("ctx").getInt("order_id"))
         assertEquals(TOKEN_A, store.get(SecureStore.VISITOR_TOKEN))
@@ -183,7 +183,7 @@ class ChatCoreTest {
         assertEquals("android", body.getString("platform"))
         assertEquals("com.acme.app", body.getString("app_id"))
         assertEquals("2.3.0", body.getString("app_version"))
-        assertEquals("android/0.1.0", body.getString("sdk"))
+        assertEquals("android/0.2.0", body.getString("sdk"))
         assertEquals("ar", body.getString("locale"))
         assertFalse(body.getBoolean("sandbox"))
         assertEquals(2, server.requestCount)
@@ -262,9 +262,13 @@ class ChatCoreTest {
         assertEquals(TOKEN_A, boot.getString("token"))
         assertEquals("com.acme.app", boot.getString("appId"))
         assertEquals("android", boot.getString("platform"))
-        assertEquals("android/0.1.0", boot.getString("sdk"))
+        assertEquals("android/0.2.0", boot.getString("sdk"))
         assertEquals("help", boot.getJSONObject("context").getString("screen"))
         assertEquals("#0e7c66", boot.getString("color"))
+        assertFalse(boot.has("insets"))
+        val withInsets = colored.bootPayload(TOKEN_A, "light", SafeInsets(84, 63, 0, 0).toCssJson(2.625f))
+        assertEquals(32.0, withInsets.getJSONObject("insets").getDouble("top"), 0.0)
+        assertEquals(24.0, withInsets.getJSONObject("insets").getDouble("bottom"), 0.0)
     }
 
     @Test

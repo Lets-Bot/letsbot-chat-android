@@ -22,8 +22,11 @@ import net.letsbot.chat.LetsBotChatView
 /**
  * The LetsBot hosted chat screen as a composable. [LetsBot.configure] must have been called first.
  *
- * The composable fills [modifier]; apply window-inset padding (e.g. `Modifier.safeDrawingPadding()`) if your
- * screen is edge-to-edge.
+ * Edge-to-edge: give it the whole screen (`Modifier.fillMaxSize()`, no `safeDrawingPadding()`/`imePadding()`).
+ * The chat works out how much of the status bar, navigation bar, display cutout and keyboard overlaps it and the
+ * page pads its header and composer itself, so the header colour fills the status-bar area. While it sits under the
+ * status / navigation bar, their icon style follows the chat; your previous style comes back when it leaves the
+ * composition. Call `enableEdgeToEdge()` in the hosting activity so it can draw behind the bars.
  *
  * @param onClose called when the user closes the chat from the page or [LetsBot.hide] is called; navigate back here.
  */

@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -15,6 +16,7 @@ import android.util.AttributeSet
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.webkit.CookieManager
 import android.webkit.ConsoleMessage
 import android.webkit.PermissionRequest
@@ -35,6 +37,9 @@ import android.widget.TextView
 import androidx.annotation.RestrictTo
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,14 +47,24 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import net.letsbot.chat.internal.BridgeMessage
 import net.letsbot.chat.internal.ChatBridge
+import net.letsbot.chat.internal.ChatChrome
 import net.letsbot.chat.internal.ChatCore
 import net.letsbot.chat.internal.ChatSurface
+import net.letsbot.chat.internal.SafeInsets
+import net.letsbot.chat.internal.SystemBars
+import net.letsbot.chat.internal.SystemBarsKeeper
 import net.letsbot.chat.internal.UrlPolicy
 import org.json.JSONObject
 
 /**
  * The hosted chat screen in a locked-down [WebView]. Used by [LetsBotChatActivity] and the Compose
  * `LetsBotChatScreen`; apps should use those (or [LetsBot.show]) instead of this view.
+ *
+ * Edge-to-edge (API.md §8.1): the view may sit under the status bar, navigation bar, display cutout and keyboard. It
+ * works out how much of each overlaps it and passes that to the page (`boot({insets})`, then
+ * `LetsBotHost.setInsets`), which pads its header and composer itself. The page's `chrome` event sets the bar icon
+ * style (only for the bars the view is under) and the background; the host window's previous bar style comes back
+ * when the view is detached.
  */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 public class LetsBotChatView @JvmOverloads constructor(
@@ -71,6 +86,16 @@ public class LetsBotChatView @JvmOverloads constructor(
     private var pendingPermission: PermissionRequest? = null
     private var loaded = false
     private var destroyed = false
+    private var chrome: ChatChrome? = null
+    private var chromeTheme: String? = null
+    private var chromeFromPage = false
+    private var insets: SafeInsets = SafeInsets.ZERO
+    private var insetsSent: String? = null
+    private var barsKeeper: SystemBarsKeeper? = null
+    private val errorPadding = (24 * resources.displayMetrics.density).toInt()
+
+    /** Called with the chat background (ARGB) whenever it changes, e.g. to paint the hosting window. */
+    internal var onBackgroundChanged: ((Int) -> Unit)? = null
 
     init {
         addView(progress, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
@@ -96,17 +121,28 @@ public class LetsBotChatView @JvmOverloads constructor(
         }
         addView(errorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         contentDescription = context.getString(R.string.letsbot_chat_title)
+        setBackgroundColor(currentChrome().backgroundArgb)
+        ViewCompat.setOnApplyWindowInsetsListener(this) { _, windowInsets ->
+            updateInsets()
+            windowInsets // not consumed: siblings / children keep them
+        }
+        addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateInsets() }
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         if (destroyed) return
         LetsBot.eventHub.attach(surface)
+        if (barsKeeper == null) barsKeeper = findWindow(context)?.let { SystemBarsKeeper(WindowBars(it)) }
+        ViewCompat.requestApplyInsets(this)
+        if (!chromeFromPage) chrome = null // configured since construction: pick up the cached colours
+        applyChrome(currentChrome())
         if (!loaded) load()
     }
 
     override fun onDetachedFromWindow() {
         LetsBot.eventHub.detach(surface)
+        barsKeeper?.restore()
         super.onDetachedFromWindow()
     }
 
@@ -115,6 +151,7 @@ public class LetsBotChatView @JvmOverloads constructor(
         if (destroyed) return
         destroyed = true
         LetsBot.eventHub.detach(surface)
+        barsKeeper?.restore()
         viewScope.cancel()
         pendingFileCallback?.onReceiveValue(null)
         pendingFileCallback = null
@@ -142,6 +179,7 @@ public class LetsBotChatView @JvmOverloads constructor(
     }
 
     private fun applyTheme() {
+        refreshChromeForTheme()
         evaluateOnTrustedPage("window.LetsBotHost&&window.LetsBotHost.setTheme(${JSONObject.quote(resolvedTheme())});")
     }
 
@@ -194,6 +232,7 @@ public class LetsBotChatView @JvmOverloads constructor(
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
         web.isVerticalScrollBarEnabled = false
+        web.setBackgroundColor(currentChrome().backgroundArgb)
         web.webViewClient = Client(core.urlPolicy)
         web.webChromeClient = Chrome(core.urlPolicy)
         web.setDownloadListener { url, _, _, _, _ -> openExternal(url) }
@@ -240,14 +279,105 @@ public class LetsBotChatView @JvmOverloads constructor(
             is BridgeMessage.Error -> LetsBot.eventHub.error(
                 LetsBotException(LetsBotErrorCode.fromWire(message.code), message.code, rawCode = message.code),
             )
+            is BridgeMessage.Chrome -> onPageChrome(current, message)
         }
     }
 
     private fun boot(core: ChatCore, token: String) {
         bootedToken = token
-        val payload = core.bootPayload(token, resolvedTheme()).toString()
+        updateInsets(send = false)
+        val css = insets.toCssJson(resources.displayMetrics.density)
+        insetsSent = css.toString()
+        val payload = core.bootPayload(token, resolvedTheme(), css).toString()
         evaluateOnTrustedPage("window.LetsBotHost&&window.LetsBotHost.boot($payload);")
     }
+
+    // region Edge-to-edge: insets and chrome
+
+    /** Recomputes how much of the system bars / cutout / keyboard overlaps this view and tells the page. */
+    private fun updateInsets(send: Boolean = true) {
+        val root = ViewCompat.getRootWindowInsets(this) ?: return
+        val bars = root.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        val ime = root.getInsets(WindowInsetsCompat.Type.ime())
+        val location = IntArray(2)
+        getLocationInWindow(location)
+        val window = rootView
+        val next = SafeInsets.overlap(
+            barsTop = bars.top, barsBottom = bars.bottom, barsLeft = bars.left, barsRight = bars.right,
+            imeBottom = ime.bottom,
+            viewLeft = location[0], viewTop = location[1], viewWidth = width, viewHeight = height,
+            windowWidth = window.width, windowHeight = window.height,
+        )
+        if (next != insets) {
+            insets = next
+            errorPanel.setPadding(
+                errorPadding + next.left, errorPadding + next.top, errorPadding + next.right, errorPadding + next.bottom,
+            )
+            applyChrome(currentChrome())
+        }
+        if (!send || bootedToken == null) return
+        val css = insets.toCssJson(resources.displayMetrics.density).toString()
+        if (css == insetsSent) return
+        insetsSent = css
+        evaluateOnTrustedPage("window.LetsBotHost&&window.LetsBotHost.setInsets($css);")
+    }
+
+    /** Chrome for the current theme: reported by the page, else cached from an earlier session, else neutral. */
+    private fun currentChrome(): ChatChrome {
+        val theme = resolvedTheme()
+        chrome?.takeIf { chromeTheme == theme }?.let { return it }
+        val current = core ?: LetsBot.coreOrNull()
+        val initial = current?.let { LetsBot.chromeCache?.load(it.baseUrl, it.appKey, theme) }
+            ?: ChatChrome.neutral(dark = theme == "dark", brandColor = current?.color)
+        chrome = initial
+        chromeTheme = theme
+        chromeFromPage = false
+        return initial
+    }
+
+    private fun refreshChromeForTheme() {
+        val before = chrome
+        val now = currentChrome()
+        if (now != before) applyChrome(now)
+    }
+
+    private fun onPageChrome(core: ChatCore, event: BridgeMessage.Chrome) {
+        val theme = resolvedTheme()
+        val updated = currentChrome().merged(event)
+        chrome = updated
+        chromeTheme = theme
+        chromeFromPage = true
+        applyChrome(updated)
+        LetsBot.chromeCache?.save(updated, core.baseUrl, core.appKey, theme)
+    }
+
+    private fun applyChrome(chrome: ChatChrome) {
+        val background = chrome.backgroundArgb
+        setBackgroundColor(background)
+        webView?.setBackgroundColor(background)
+        onBackgroundChanged?.invoke(background)
+        if (isAttachedToWindow) {
+            barsKeeper?.apply(chrome, statusBar = insets.top > 0, navigationBar = insets.bottom > 0)
+        }
+    }
+
+    private class WindowBars(window: Window) : SystemBars {
+        private val controller = WindowInsetsControllerCompat(window, window.decorView)
+
+        override var lightStatusBars: Boolean
+            get() = controller.isAppearanceLightStatusBars
+            set(value) {
+                controller.isAppearanceLightStatusBars = value
+            }
+
+        override var lightNavigationBars: Boolean
+            get() = controller.isAppearanceLightNavigationBars
+            set(value) {
+                controller.isAppearanceLightNavigationBars = value
+            }
+    }
+
+    // endregion
 
     /** Runs [script] only while the WebView shows the LetsBot `ui` page (the token never reaches another origin). */
     private fun evaluateOnTrustedPage(script: String) {
@@ -417,6 +547,15 @@ public class LetsBotChatView @JvmOverloads constructor(
     }
 
     public companion object {
+        private fun findWindow(context: Context): Window? {
+            var current: Context? = context
+            while (current is ContextWrapper) {
+                if (current is Activity) return current.window
+                current = current.baseContext
+            }
+            return null
+        }
+
         private val ALLOWED_MIME = listOf("image/*", "application/pdf")
 
         private fun mimeMatches(requested: String, allowed: String): Boolean = when {
